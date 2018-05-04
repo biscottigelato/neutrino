@@ -784,8 +784,12 @@ func NewChainService(cfg Config) (*ChainService, error) {
 		})
 	}
 
-	s.utxoScanner = NewUtxoScanner(&s)
-	s.utxoScanner.Start()
+	s.utxoScanner = NewUtxoScanner(&UtxoScannerConfig{
+		BestSnapshot:       s.BestSnapshot,
+		GetBlockHash:       s.GetBlockHash,
+		BlockFilterMatches: s.blockFilterMatches,
+		GetBlock:           s.GetBlockFromNetwork,
+	})
 
 	return &s, nil
 }
@@ -948,6 +952,7 @@ func (s *ChainService) peerHandler() {
 	// in this handler.
 	s.addrManager.Start()
 	s.blockManager.Start()
+	s.utxoScanner.Start()
 
 	state := &peerState{
 		persistentPeers: make(map[int32]*ServerPeer),
@@ -1003,6 +1008,7 @@ out:
 	}
 
 	s.connManager.Stop()
+	s.utxoScanner.Stop()
 	s.blockManager.Stop()
 	s.addrManager.Stop()
 
