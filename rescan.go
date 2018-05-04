@@ -906,37 +906,47 @@ func (s *ChainService) GetUtxo(options ...RescanOption) (*SpendReport, error) {
 		option(ro)
 	}
 
-	// As this is meant to fetch UTXO's, the options MUST specify at least
-	// a single outpoint.
+	// As this is meant to fetch UTXO's, the options MUST specify exactly
+	// one outpoint.
 	if len(ro.watchOutPoints) != 1 {
 		return nil, fmt.Errorf("must pass exactly one OutPoint")
 	}
 
-	var (
-		result *SpendReport
-		resultError error
-		wg sync.WaitGroup
-	)
+	// Create a simple type holding a spend report and error.
+	type reportAndError struct {
+		report *SpendReport
+		err    error
+	}
 
-	wg.Add(1)
+	result := make(chan reportAndError, 1)
+
 	s.utxoScanner.Enqueue(&GetUtxoRequest{
 		OutPoint:    &ro.watchOutPoints[0],
 		StartHeight: uint32(ro.startBlock.Height),
 		Result: func(report *SpendReport, err error) {
-			result = report
-			resultError = err
-			wg.Done()
+			select {
+			case result <- reportAndError{report, err}:
+			default:
+			}
 		},
 	})
-	wg.Wait()
 
-	if resultError != nil {
-		log.Debugf("Error finding spends for %s: %v",
-			ro.watchOutPoints[0].String(), resultError)
-		return nil, resultError
+	// Wait for the result to be delivered by the rescan or until a shutdown
+	// is signaled.
+	var res reportAndError
+	select {
+	case res = <-result:
+	case <-s.quit:
+		return nil, ErrShuttingDown
 	}
 
-	return result, nil
+	if res.err != nil {
+		log.Debugf("Error finding spends for %s: %v",
+			ro.watchOutPoints[0].String(), res.err)
+		return nil, res.err
+	}
+
+	return res.report, nil
 }
 
 // getReorgTip gets a block header from the chain service's cache. This is only
