@@ -1361,8 +1361,9 @@ func testRandomBlocks(t *testing.T, svc *neutrino.ChainService,
 // on the flow of the test. The rescan starts at the genesis block and the
 // notifications continue until the `quit` channel is closed.
 func startRescan(t *testing.T, svc *neutrino.ChainService, addr btcutil.Address,
-	startBlock *waddrmgr.BlockStamp, quit <-chan struct{}) (neutrino.Rescan,
-	<-chan error) {
+	startBlock *waddrmgr.BlockStamp,
+	quit <-chan struct{}) (*neutrino.Rescan, <-chan error) {
+
 	rescan := svc.NewRescan(
 		neutrino.QuitChan(quit),
 		neutrino.WatchAddrs(addr),
@@ -1459,7 +1460,7 @@ func startRescan(t *testing.T, svc *neutrino.ChainService, addr btcutil.Address,
 
 	errChan := rescan.Start()
 
-	return rescan, errChan
+	return &rescan, errChan
 }
 
 // checkRescanStatus returns the number of relevant transactions we currently
