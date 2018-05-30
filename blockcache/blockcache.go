@@ -3,10 +3,10 @@ package blockcache
 import (
 	"bytes"
 	"fmt"
+	"sync/atomic"
+
 	"github.com/roasbeef/btcd/chaincfg/chainhash"
 	"github.com/roasbeef/btcd/wire"
-	"os"
-	"sync/atomic"
 )
 
 var (
